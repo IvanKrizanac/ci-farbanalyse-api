@@ -21,14 +21,15 @@ class CIResponse(BaseModel):
     secondary_color: str
     notes: str
 
+# Hilfsfunktion zur Prüfung auf gleiche Domain
 def is_same_domain(base: str, target: str) -> bool:
     return urlparse(base).netloc == urlparse(target).netloc
 
 @app.get("/crawl-analyze", response_model=AnalyzeResponse)
 def crawl_analyze(
     url: str = Query(...),
-    max_pages: int = Query(5),
-    min_images: int = Query(10)
+    max_pages: int = Query(5, description="Maximale Anzahl an Seiten"),
+    min_images: int = Query(10, description="Minimale Anzahl an Bildern")
 ):
     visited: Set[str] = set()
     to_visit: List[str] = [url]
@@ -93,15 +94,15 @@ def analyze_ci(data: Dict):
     openai.api_key = os.getenv("OPENAI_API_KEY")
 
     prompt = f"""
-    Analysiere den folgenden Website-Text, HTML und CSS-Ausschnitte und gib die dominanten CI-Farben (z. B. HEX-Codes) und visuelle Hinweise zurück.
+    Analysiere ausschließlich die Corporate Identity (CI) der folgenden Website anhand von Text, Bild-Alt-Tags, Titeln und stilistischen Hinweisen. Bestimme ausschließlich die Haupt- und Sekundärfarben (HEX-Codes), die klar zur Marke gehören – z. B. aus dem Logo, Headline-Farben oder prominenten Flächen. Ignoriere dekorative Farben oder generische CSS-Werte.
 
     TEXT: {data.get('text', '')}
 
-    GIB DAS ERGEBNIS ALS JSON:
+    ANTWORT ALS JSON im Format:
     {{
-      "primary_color": "#...",
-      "secondary_color": "#...",
-      "notes": "Kurze Begründung zur Auswahl"
+      "primary_color": "#HEX",
+      "secondary_color": "#HEX",
+      "notes": "Begründung für die Farbwahl, z. B. basierend auf Logo, Button, Headline"
     }}
     """
 
@@ -110,4 +111,8 @@ def analyze_ci(data: Dict):
         messages=[{"role": "user", "content": prompt}]
     )
     answer = response.choices[0].message.content
-    return eval(answer) if answer.startswith("{") else {"primary_color": "", "secondary_color": "", "notes": answer}
+    import json
+    try:
+        return json.loads(answer)
+    except:
+        return {"primary_color": "", "secondary_color": "", "notes": answer}
