@@ -20,6 +20,7 @@ class AnalyzeResponse(BaseModel):
 class CIResponse(BaseModel):
     primary_color: str
     secondary_color: str
+    notes: str
 
 def is_same_domain(base: str, target: str) -> bool:
     return urlparse(base).netloc == urlparse(target).netloc
@@ -91,17 +92,20 @@ def crawl_analyze(
 @app.post("/analyze-ci", response_model=CIResponse)
 def analyze_ci(data: Dict):
     openai.api_key = os.getenv("OPENAI_API_KEY")
-    prompt = f'''
-    Analysiere ausschließlich die Corporate Identity (CI) der folgenden Website anhand von Text, Bild-Alt-Tags, Titeln und stilistischen Hinweisen. Gib nur die zwei relevantesten CI-Farben (HEX-Codes) zurück, keine Erklärungen und keine dekorativen Farben.
 
-    TEXT: {data.get("text", "")}
+    prompt = f"""
+    Analysiere ausschließlich die Corporate Identity (CI) der folgenden Website anhand von Text, Bild-Alt-Tags, Titeln und stilistischen Hinweisen. Gib nur die zwei relevantesten CI-Farben (HEX-Codes) zurück – zusätzlich eine kurze Begründung zur Farbauswahl. Keine dekorativen Farben, keine generischen CSS-Werte.
+
+    TEXT: {data.get('text', '')}
 
     ANTWORT ALS JSON:
     {{
       "primary_color": "#HEX",
-      "secondary_color": "#HEX"
+      "secondary_color": "#HEX",
+      "notes": "Begründung der Farbwahl auf Basis des Texts"
     }}
-    '''
+    """
+
     response = openai.ChatCompletion.create(
         model="gpt-4",
         messages=[{"role": "user", "content": prompt}]
@@ -110,4 +114,4 @@ def analyze_ci(data: Dict):
     try:
         return json.loads(answer)
     except:
-        return {"primary_color": "", "secondary_color": ""}
+        return {"primary_color": "", "secondary_color": "", "notes": "Fehler beim Parsen"}
