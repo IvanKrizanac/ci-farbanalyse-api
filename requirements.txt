@@ -1,5 +1,6 @@
 fastapi
+pydantic
 playwright
-beautifulsoup4
+bs4
 openai
 uvicorn
